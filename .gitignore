@@ -1,0 +1,5 @@
+*.img
+*.xcodeproj
+*.o
+*.exe
+*.app
