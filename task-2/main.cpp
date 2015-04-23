@@ -11,6 +11,9 @@
 #include <openssl/md5.h>
 #include <openssl/sha.h>
 #include <libgen.h>
+#include <stdio.h>
+#include <cstdlib>
+#include <cstring>
 
 #ifdef _WIN32
     const char* os_pathsep = "\\";

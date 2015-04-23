@@ -1,5 +1,5 @@
 all: main.o
-	g++ -lssl -lcrypto -w -o main main.o
+	g++ -w -o main main.o -lcrypto -lssl
 
 main.o: main.cpp
 	g++ -c  -lssl -lcrypto -w main.cpp
