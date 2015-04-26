@@ -15,6 +15,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <unordered_map>
+#include <vector>
 
 #ifdef _WIN32
 using namespace std;
@@ -38,6 +39,7 @@ void readPartition();
 //my additions
 void parType(char type);
 void parStart(int start);
+std::vector<const char *> types;
 
 int parStart();
 void testPrint();
@@ -163,6 +165,7 @@ void writeOutFile(char *path, HashType hashType){
 
 
 void readPartitionTable(){
+    types.clear();
     skipBytes(446);
     for(int j = 0; j < 4; j++)
 	readPartition();
@@ -178,7 +181,7 @@ void readPartitionTable(){
 
 
 //start position of each partition (1-4)
-void parType(char* type)
+void readpar1(char* type)
 {
 
  //type = type.c_str();
@@ -216,7 +219,7 @@ void testPrint()
 
 
 
-//char parType(){
+//char readpar1(){
 //skipBytes(3);
 //std::string type;
 //std::stringstream stream;
@@ -306,6 +309,7 @@ void readPartition(){
     sr >> startInt; 
 
     printf("(%s) %s,\n", type.c_str(), hexCodes[type]);
+    types.push_back(type.c_str());
     printf("head: %d\n", head);
     printf("cylinder: %d\n", cylinder);
     //skipBytes(5);
@@ -313,7 +317,7 @@ void readPartition(){
     printf("size: %d\n", sizeInt);
     printf("start: %d\n", startInt);
     parStart(startInt);
-    parType((char*)type.c_str());
+    readpar1((char*)type.c_str());
     
     printf("i count - %d\n", i);
     
