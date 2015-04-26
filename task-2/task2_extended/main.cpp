@@ -15,7 +15,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <unordered_map>
-#include <vector>
+
 
 #ifdef _WIN32
 using namespace std;
@@ -37,11 +37,9 @@ void readPartitionTable();
 void readPartition();
 
 //my additions
-void parType(char type);
+void parType(int type);
 void parStart(int start);
-std::vector<const char *> types;
 
-int parStart();
 void testPrint();
 void readVBR();
 
@@ -54,19 +52,8 @@ int i;
 //my additions
 int z = 0;
 int y = 0;
-char *par1[4];
-
+unsigned int par1[4];
 unsigned int par2[4];
-
-//unsigned int conv[4];
-//unsigned char *par1[4] = {""};
-
-//par1 = std::string(stream.str());;
-
-
-
-
-
 
 
 int main(int argc, char * argv[]) {
@@ -89,7 +76,6 @@ int main(int argc, char * argv[]) {
 	readPartitionTable();
         printf("----------------------TEST--------------------\n");
         testPrint();
-        //parType();
         printf("\n----------------------VBR--------------------\n");
 	readVBR();
     }
@@ -100,13 +86,6 @@ int main(int argc, char * argv[]) {
     fclose(inFile);
     return 0;
 }
-
-
-
-
-
-
-
 
 char *getHash(HashType hashType){
     const int BUFF_SIZE = 1024;
@@ -140,9 +119,6 @@ char *getHash(HashType hashType){
     return retVal;
 }
 
-
-
-
 void writeOutFile(char *path, HashType hashType){
     char *outFilename = dirname(path);
     strcat (outFilename, os_pathsep);
@@ -165,164 +141,117 @@ void writeOutFile(char *path, HashType hashType){
 
 
 void readPartitionTable(){
-    types.clear();
+    
     skipBytes(446);
     for(int j = 0; j < 4; j++)
-	readPartition();
-          //printf("testing: %d", readPartition());
-          //parStart(); 
-          //exit(0);
+	{
+         readPartition();
+        }           
 }
 
-
-
-
-
-
+//extracts each partition type in decimal
+void parType(int type)
+{
+ par1[y] = type;
+ y++; 
+}
 
 //start position of each partition (1-4)
-void readpar1(char* type)
-{
-
- //type = type.c_str();
- //printf("type: %s\n", type);
- //par1[y] = (unsigned char*)type;
- par1[y] = type;
- y++;
-}
-
 void parStart(int start)
 { 
   par2[z] = start;
   z++;
 }
 
-
-
-
-
-
-//testing partition start sectors
+//testing partition start sectors and types
 void testPrint()
 {
+
  printf("\npar1: %d\n", par2[0]);
  printf("par2: %d\n", par2[1]);
  printf("par3: %d\n", par2[2]);
  printf("par4: %d\n", par2[3]);
 
- //cout << "\npar1: \n" << par1[0] << endl;
- printf("\npar1: %s\n",par1[0]);
- /*printf("\npar1: %s\n",par1[0]);
- printf("\npar1: %s\n",par1[0]);*/
-  
+ printf("\npar1[type]: %d\n", par1[0]);
+ printf("par2[type]: %d\n", par1[1]);
+ printf("par3[type]: %d\n", par1[2]);
+ printf("par4[type]: %d\n", par1[3]);
 }
-
-
-
-//char readpar1(){
-//skipBytes(3);
-//std::string type;
-//std::stringstream stream;
-//stream << std::hex << fgetc(inFile);
-//type = std::string(stream.str());;
-
-//return type;
-//}
-
-
-
-
-
-//int parStart()
-//{
- // skipBytes(7);
- // std::stringstream stream;
- // std::string type, start("");
- // unsigned int startInt;
- // std::stringstream sr;
-
-  //for(int j = 0; j < 4; j++)
-   // {
-     //  stream.str("");;
-     //  stream << std::hex << fgetc(inFile);
-     // std::string temp(stream.str());
-     // start = temp + start;
-    //} 
-  //sr << std::hex << start.c_str();
-  //sr >> startInt; 
-  
-  //printf("testing: %d", startInt);
-  //return startInt; 
-//}
-
-
-
 
 void readPartition(){
     printf("-------------------------\n");
     skipBytes(1);
     std::stringstream stream;
-    int cylinder, sector, head; // start;
+    int cylinder, sector, head; 
     std::string type, size(""), start("");
     //std::string type, start("");
+    
     head = fgetc(inFile);
     cylinder = fgetc(inFile);
-    //skipBytes(1);
     sector = fgetc(inFile);
    
     stream << std::hex << fgetc(inFile);
     type = std::string(stream.str());;
  
     
-    skipBytes(3);
-   i+=4;
-    for(int j = 0; j < 4; j++)
+   /* skipBytes(3);
+    i+=2;
+    for(int l = 0; l < 4; l++)
     {
        stream.str("");;
        stream << std::hex << fgetc(inFile);
        std::string temp(stream.str());
        start = temp + start;
-       i++;
-    }       
+       //i++;
+    }*/
+    
+    //printf("start: %d\n", start);       
 
     //skipBytes(-5);
     //start = fgetc(inFile);
     
     
-    //i+=4;
-    //skipBytes(7);
+    i+=4;
+    skipBytes(7);
     for(int j = 0; j < 4; j++){
 	stream.str("");;
 	stream << std::hex << fgetc(inFile);
 	std::string temp(stream.str());
 	size = temp + size;
         //printf("i size = %d\n", i);
+        printf("test: %s\n", size.c_str());
 	i++;
 	
     }
-    unsigned int sizeInt, startInt;
-    std::stringstream ss, sr;
+    //skipBytes(1);
+    unsigned int sizeInt, startInt, conv1;
+    char *input;
+    std::stringstream ss, sr, sx;
     ss << std::hex << size.c_str();
     ss >> sizeInt;
     
-    sr << std::hex << start.c_str();
-    sr >> startInt; 
+    //sr << std::hex << start.c_str();
+    //sr >> startInt;     
 
     printf("(%s) %s,\n", type.c_str(), hexCodes[type]);
-    types.push_back(type.c_str());
+
+    sx << std::hex <<type.c_str();
+    sx >> conv1;
+
+
+    
     printf("head: %d\n", head);
     printf("cylinder: %d\n", cylinder);
-    //skipBytes(5);
     printf("sector: %d\n", sector);
     printf("size: %d\n", sizeInt);
-    printf("start: %d\n", startInt);
-    parStart(startInt);
-    readpar1((char*)type.c_str());
+   //printf("start: %d\n", startInt);
+   //parStart(startInt);
+    parType(conv1);
     
+   
     printf("i count - %d\n", i);
-    
-        
 }
+
 
 //================================**************
 //================================**************
@@ -332,8 +261,6 @@ void readVBR()
    int start, s_clus, fat_num;
    std::string type, reserve(""), fat_size("");
    start = (par2[0] * 512) - 510; 
-
-
 
    
    skipBytes(start);
@@ -363,10 +290,7 @@ void readVBR()
       fat_size = temp + fat_size;
       i++;
     }
-
-   
-   
-  
+ 
 
    unsigned int reserveInt, fatInt;
    std::stringstream ss, sr;
@@ -377,16 +301,12 @@ void readVBR()
    sr << std::hex << fat_size.c_str();
    sr >> fatInt;
 
-
-
    printf("reserve size: %d\n", reserveInt);
    printf("cluster size: %d\n", s_clus);
    printf("# of FATs: %d\n", fat_num);
    printf("size of each FAT: %d\n", fatInt);
    printf("i count - %d\n", i);
 }
-
-
 //================================**************
 //================================**************
 
@@ -397,9 +317,6 @@ char *getFilename(char *path){
     char *retVal = strtok(nameWithExt, "\.");
     return retVal;
 }
-
-
-
 
 void skipBytes(int numBytesToSkip){
     const int BUFF_SIZE = 1024;
@@ -412,23 +329,7 @@ void skipBytes(int numBytesToSkip){
     }
 }
 
-
-
-
-
-
-
-
-
-
 //==================================================================================
-
-
-
-
-
-
-
 
 void initHexCodes(){
     hexCodes.insert(std::make_pair<std::string, const char *>(std::string("1"), "DOS 12-bit FAT"));
