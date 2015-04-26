@@ -15,6 +15,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <unordered_map>
+#include <vector>
 
 
 #ifdef _WIN32
@@ -35,6 +36,7 @@ void initHexCodes();
 void skipBytes(int numBytesToSkip);
 void readPartitionTable();
 void readPartition();
+std::vector<std::string> splitString(std::string s);
 
 //my additions
 void parType(int type);
@@ -69,14 +71,10 @@ int main(int argc, char * argv[]) {
     }
     inFile = fopen(filepath, "rb");
     if(inFile != NULL){
-	// writeOutFile(filepath, MD5_HASH);
-	// writeOutFile(filepath, SHA1_HASH);
-        //readSize();
-        printf("----------------------MBR--------------------\n");
+	printf("Checksums:\n====================================\n");
+	writeOutFile(filepath, MD5_HASH);
+	writeOutFile(filepath, SHA1_HASH);
 	readPartitionTable();
-        printf("----------------------TEST--------------------\n");
-        testPrint();
-        printf("\n----------------------VBR--------------------\n");
 	readVBR();
     }
     else{
@@ -87,51 +85,61 @@ int main(int argc, char * argv[]) {
     return 0;
 }
 
-char *getHash(HashType hashType){
-    const int BUFF_SIZE = 1024;
-    int digestLength;
-    char *retVal;
-    unsigned char *digest, buff[BUFF_SIZE];
-    size_t bytes;
-    if(hashType == MD5_HASH){
-	digestLength = MD5_DIGEST_LENGTH;
-	retVal = (char *)malloc(sizeof(char) * MD5_DIGEST_LENGTH);
-	digest = (unsigned char *)malloc(sizeof(unsigned char) * MD5_DIGEST_LENGTH);
-	MD5_CTX context;
-	MD5_Init(&context);
-	while ((bytes = fread (buff, 1, BUFF_SIZE, inFile)) != 0)
-	    MD5_Update (&context, buff, bytes);
-	MD5_Final (digest,&context);
-    }
-    else{
-	digestLength = SHA_DIGEST_LENGTH;
-	retVal = (char *)malloc(sizeof(char) * SHA_DIGEST_LENGTH);
-	digest = (unsigned char *)malloc(sizeof(unsigned char) * MD5_DIGEST_LENGTH);
-	SHA_CTX context;
-	SHA1_Init (&context);
-	while ((bytes = fread (buff, 1, BUFF_SIZE, inFile)) != 0)
-	    SHA1_Update (&context, buff, bytes);
-	SHA1_Final (digest,&context);
-    }
-    for(int j = 0; j < digestLength; j++)
-	sprintf(retVal, "%s%02x", retVal, digest[i]);
-    rewind(inFile);
-    return retVal;
-}
-
 void writeOutFile(char *path, HashType hashType){
+    std::string escapedPath(path);
+
+    std::string replace = "\\ ", search = " ";
+
+    for( size_t pos = 0; ; pos += replace.length() ) 
+    {
+	pos = escapedPath.find( search, pos );
+	if( pos == std::string::npos ) break;
+
+	escapedPath.erase( pos, search.length() );
+	escapedPath.insert( pos, replace );
+    }
+
     char *outFilename = dirname(path);
     strcat (outFilename, os_pathsep);
     if(hashType == MD5_HASH)
 	strcat(outFilename, "MD5-");
     else
 	strcat(outFilename, "SHA1-");
+
     strcat (outFilename, getFilename(path));
     strcat (outFilename, ".txt");
+
+    std::string cmd = "openssl ";
+
+    if(hashType == MD5_HASH)
+	cmd += "md5 ";
+    else
+	cmd += "sha1 ";
+
+    cmd += escapedPath;
+
+    FILE* pipe = popen(cmd.c_str(), "r");
+    char buffer[128];
+    std::string result = "";
+
+    while(!feof(pipe)) {
+	if(fgets(buffer, 128, pipe) != NULL)
+	    result += buffer;
+    }
+
+    pclose(pipe);
+    std::vector<std::string> tokens = splitString(result);
+    std::string hash = tokens[tokens.size() - 1];
+
+    if(hashType == MD5_HASH)
+	printf("MD5: %s\n", hash.c_str());
+    else
+	printf("SHA1: %s\n", hash.c_str());
+
+
     FILE *outFile = fopen(outFilename, "w");
-    char *hash = getHash(hashType);
-    printf("%s\n", hash);
-    fwrite(hash, sizeof(char), strlen(hash), outFile);
+
+    fwrite(hash.c_str(), sizeof(char), strlen(hash.c_str()), outFile);
     fclose(outFile);
 }
 
@@ -141,176 +149,152 @@ void writeOutFile(char *path, HashType hashType){
 
 
 void readPartitionTable(){
-    
+
     skipBytes(446);
+    printf("====================================\n");
     for(int j = 0; j < 4; j++)
-	{
-         readPartition();
-        }           
+    {
+	readPartition();
+    }           
+    printf("====================================\n");
 }
 
 //extracts each partition type in decimal
 void parType(int type)
 {
- par1[y] = type;
- y++; 
+    par1[y] = type;
+    y++; 
 }
 
 //start position of each partition (1-4)
 void parStart(int start)
 { 
-  par2[z] = start;
-  z++;
+    par2[z] = start;
+    z++;
 }
 
 //testing partition start sectors and types
 void testPrint()
 {
 
- printf("\npar1: %d\n", par2[0]);
- printf("par2: %d\n", par2[1]);
- printf("par3: %d\n", par2[2]);
- printf("par4: %d\n", par2[3]);
+    printf("\npar1: %d\n", par2[0]);
+    printf("par2: %d\n", par2[1]);
+    printf("par3: %d\n", par2[2]);
+    printf("par4: %d\n", par2[3]);
 
- printf("\npar1[type]: %d\n", par1[0]);
- printf("par2[type]: %d\n", par1[1]);
- printf("par3[type]: %d\n", par1[2]);
- printf("par4[type]: %d\n", par1[3]);
+    printf("\npar1[type]: %d\n", par1[0]);
+    printf("par2[type]: %d\n", par1[1]);
+    printf("par3[type]: %d\n", par1[2]);
+    printf("par4[type]: %d\n", par1[3]);
 }
 
 void readPartition(){
-    printf("-------------------------\n");
     skipBytes(1);
     std::stringstream stream;
     int cylinder, sector, head; 
     std::string type, size(""), start("");
-    //std::string type, start("");
-    
+
     head = fgetc(inFile);
     cylinder = fgetc(inFile);
     sector = fgetc(inFile);
-   
+
     stream << std::hex << fgetc(inFile);
     type = std::string(stream.str());;
- 
-    
-   /* skipBytes(3);
-    i+=2;
-    for(int l = 0; l < 4; l++)
-    {
-       stream.str("");;
-       stream << std::hex << fgetc(inFile);
-       std::string temp(stream.str());
-       start = temp + start;
-       //i++;
-    }*/
-    
-    //printf("start: %d\n", start);       
 
-    //skipBytes(-5);
-    //start = fgetc(inFile);
-    
-    
     i+=4;
-    skipBytes(7);
+    skipBytes(3);
+
     for(int j = 0; j < 4; j++){
-	stream.str("");;
-	stream << std::hex << fgetc(inFile);
-	std::string temp(stream.str());
-	size = temp + size;
-        //printf("i size = %d\n", i);
-        printf("test: %s\n", size.c_str());
+	std::stringstream temp;
+	temp << std::hex << fgetc(inFile);
+	if(temp.str().size() == 1)
+		start = std::string("0") + temp.str() + start;
+	else
+	    start = temp.str() + start;
 	i++;
-	
     }
-    //skipBytes(1);
+
+    for(int j = 0; j < 4; j++){
+	std::stringstream temp;
+	temp << std::hex << fgetc(inFile);
+	if(temp.str().size() == 1)
+		size = std::string("0") + temp.str() + size;
+	else
+	    size = temp.str() + size;
+	i++;
+
+    }
+
     unsigned int sizeInt, startInt, conv1;
     char *input;
-    std::stringstream ss, sr, sx;
-    ss << std::hex << size.c_str();
-    ss >> sizeInt;
-    
-    //sr << std::hex << start.c_str();
-    //sr >> startInt;     
 
-    printf("(%s) %s,\n", type.c_str(), hexCodes[type]);
+    std::stringstream sizeStream, startStream, sr, sx;
+    sizeStream << std::hex << size.c_str();
+    sizeStream >> sizeInt;
+
+    startStream << std::hex << start.c_str();
+    startStream >> startInt;
+
 
     sx << std::hex <<type.c_str();
     sx >> conv1;
 
-
-    
-    printf("head: %d\n", head);
-    printf("cylinder: %d\n", cylinder);
-    printf("sector: %d\n", sector);
-    printf("size: %d\n", sizeInt);
-   //printf("start: %d\n", startInt);
-   //parStart(startInt);
+    printf("(%s) %s, %d, %d\n", type.c_str(), hexCodes[type], startInt, sizeInt);
     parType(conv1);
-    
-   
-    printf("i count - %d\n", i);
 }
 
 
-//================================**************
-//================================**************
 void readVBR()
 {  
-   std::stringstream stream;
-   int start, s_clus, fat_num;
-   std::string type, reserve(""), fat_size("");
-   start = (par2[0] * 512) - 510; 
+    std::stringstream stream;
+    int start, s_clus, fat_num;
+    std::string type, reserve(""), fat_size("");
+    start = (par2[0] * 512) - 510; 
 
-   
-   skipBytes(start);
-   skipBytes(13);
-   s_clus = fgetc(inFile);
-   
 
-   i+=2;
-   for(int j = 0; j < 2; j++)
+    skipBytes(start);
+    skipBytes(13);
+    s_clus = fgetc(inFile);
+
+
+    i+=2;
+    for(int j = 0; j < 2; j++)
     {
-      stream.str("");;
-      stream << std::hex << fgetc(inFile);
-      std::string temp(stream.str());
-      reserve = temp + reserve;
-      i++;
+	stream.str("");;
+	stream << std::hex << fgetc(inFile);
+	std::string temp(stream.str());
+	reserve = temp + reserve;
+	i++;
     }
-   
-   fat_num = fgetc(inFile);
-   //skipBytes(5);
-     skipBytes(19);
-  
-   for(int j = 0; j < 4; j++)
+
+    fat_num = fgetc(inFile);
+    //skipBytes(5);
+    skipBytes(19);
+
+    for(int j = 0; j < 4; j++)
     {
-      stream.str("");;
-      stream << std::hex << fgetc(inFile);
-      std::string temp(stream.str());
-      fat_size = temp + fat_size;
-      i++;
+	stream.str("");;
+	stream << std::hex << fgetc(inFile);
+	std::string temp(stream.str());
+	fat_size = temp + fat_size;
+	i++;
     }
- 
 
-   unsigned int reserveInt, fatInt;
-   std::stringstream ss, sr;
-   
-   ss << std::hex << reserve.c_str();
-   ss >> reserveInt;
 
-   sr << std::hex << fat_size.c_str();
-   sr >> fatInt;
+    unsigned int reserveInt, fatInt;
+    std::stringstream ss, sr;
 
-   printf("reserve size: %d\n", reserveInt);
-   printf("cluster size: %d\n", s_clus);
-   printf("# of FATs: %d\n", fat_num);
-   printf("size of each FAT: %d\n", fatInt);
-   printf("i count - %d\n", i);
+    ss << std::hex << reserve.c_str();
+    ss >> reserveInt;
+
+    sr << std::hex << fat_size.c_str();
+    sr >> fatInt;
+
+    printf("reserve size: %d\n", reserveInt);
+    printf("cluster size: %d\n", s_clus);
+    printf("# of FATs: %d\n", fat_num);
+    printf("size of each FAT: %d\n", fatInt);
 }
-//================================**************
-//================================**************
-
-
 
 char *getFilename(char *path){
     char *nameWithExt = basename(path);
@@ -329,7 +313,13 @@ void skipBytes(int numBytesToSkip){
     }
 }
 
-//==================================================================================
+std::vector<std::string> splitString(std::string s){
+    std::stringstream ss(s);
+    std::istream_iterator<std::string> begin(ss);
+    std::istream_iterator<std::string> end;
+    std::vector<std::string> vstrings(begin, end);
+    return vstrings;
+}
 
 void initHexCodes(){
     hexCodes.insert(std::make_pair<std::string, const char *>(std::string("1"), "DOS 12-bit FAT"));
