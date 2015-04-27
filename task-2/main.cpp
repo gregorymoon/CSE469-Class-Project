@@ -17,17 +17,16 @@
 #include <cstring>
 #include <unordered_map>
 #include <vector>
+#include <iterator>
 
 
 #ifdef _WIN32
-using namespace std;
-
-
 const char* os_pathsep = "\\";
 #else
 const char* os_pathsep = "/";
 #endif
 
+using namespace std;
 
 enum HashType{SHA1_HASH, MD5_HASH};
 char *getHash(HashType hashType);
